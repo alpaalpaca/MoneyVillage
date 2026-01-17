@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>머니빌리지 통합 관리 시스템</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        /* [1] 공통 스타일 */
+        :root {
+            --mv-blue-deep: #00498c;
+            --mv-blue-light: #0072ce;
+            --mv-yellow: #ffc600;
+            --mv-orange: #ff9e1b;
+            --bg-color: #f4f7fa;
+        }
+        body { font-family: 'Pretendard', sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; }
+        
+        /* 버튼 */
+        .btn { border: none; padding: 8px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; font-size: 14px; margin-right: 2px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-primary { background: var(--mv-blue-light); }
+        .btn-success { background: var(--mv-orange); } 
+        .btn-dark { background: #455a64; }
+        .btn-danger { background: #e74c3c; }
+        .btn-drive { background: #00897b; } 
+        .btn-fame { background: #ffd700; color: #333; } 
+        .btn-purple { background: #7e57c2; }
+        .btn-setup-big { width: 48%; padding: 12px; margin-top: 10px; }
+
+        /* 화면 전환 */
+        .screen { display: none; }
+        .active-screen { display: block; animation: fadeIn 0.4s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* [화면 1] 설정 */
+        .setup-card { background: white; padding: 40px; border-radius: 20px; max-width: 600px; margin: 30px auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; }
+        .logo-uploader { margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; border: 1px dashed #ccc; }
+        .stock-config-area { margin-bottom: 20px; padding: 15px; background: #eef6ff; border-radius: 10px; border: 1px solid #dbeafe; }
+        .stock-config-title { font-weight: bold; color: var(--mv-blue-deep); margin-bottom: 10px; text-align: left; font-size: 15px; }
+        .stock-inputs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .stock-input-item { display: flex; flex-direction: column; align-items: center; }
+        .stock-input-item label { font-size: 12px; color: #555; margin-bottom: 3px; font-weight: bold; }
+        .stock-input-item input { width: 80%; padding: 5px; border: 1px solid #ccc; border-radius: 5px; text-align: center; font-size: 14px; }
+        .mode-select { display: flex; justify-content: center; gap: 15px; margin: 20px 0; }
+        .mode-btn { width: 120px; padding: 15px; border: 2px solid #ddd; border-radius: 12px; cursor: pointer; background: #fff; font-weight: bold; color: #888; font-size: 16px; }
+        .mode-btn.selected { border-color: var(--mv-blue-deep); background: #eef6ff; color: var(--mv-blue-deep); }
+        .input-row { margin: 20px 0; font-size: 18px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .input-num { width: 60px; padding: 5px; text-align: center; border: 1px solid #ccc; border-radius: 5px; font-size: 18px; }
+        .player-list-input { text-align: left; max-height: 250px; overflow-y: auto; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }
+        .p-input-group { display: flex; gap: 10px; margin-bottom: 8px; align-items: center; }
+        .p-input-group input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+        .team-header { font-weight: bold; color: var(--mv-blue-deep); margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
+
+        /* [화면 2] 계수 */
+        .dashboard-layout { display: grid; grid-template-columns: 220px 1fr; gap: 20px; }
+        .sidebar { background: white; padding: 20px; border-radius: 15px; height: fit-content; }
+        .player-list-item { padding: 10px; margin-bottom: 5px; border-radius: 8px; cursor: pointer; background: #f9f9f9; display: flex; justify-content: space-between; }
+        .player-list-item.active { background: #eef6ff; color: var(--mv-blue-deep); font-weight: bold; border-left: 4px solid var(--mv-blue-deep); }
+        .player-list-item.done span { background: var(--mv-yellow); color: #333; font-weight: bold; }
+        .count-card { background: white; border-radius: 15px; padding: 25px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .portfolio-grid-sm { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .stock-item-sm { border: 1px solid #eee; border-radius: 8px; padding: 8px; text-align: center; font-size: 13px; }
+
+        /* [화면 3] 성적표 & [화면 4] 명예의 전당 공통 Paper */
+        .report-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #333; padding: 15px; border-radius: 10px; color: white; flex-wrap: nowrap; overflow-x: auto; }
+        
+        .report-paper {
+            background: white; width: 210mm; 
+            /* 화면상 높이 (A4 비율) */
+            min-height: 296mm; 
+            margin: 0 auto; padding: 12mm 15mm; 
+            box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,0.15); 
+            border-top: 8px solid var(--mv-blue-deep);
+            display: flex; flex-direction: column; position: relative;
+        }
+
+        .editable-input { border: none; border-bottom: 1px dashed #ccc; font-weight: bold; color: inherit; font-size: inherit; text-align: right; width: 80px; background: transparent; padding: 0 2px; }
+        .editable-input:focus { outline: none; border-bottom: 2px solid var(--mv-orange); background: #fffbe6; }
+        .editable-date { border: none; font-size: 16px; font-weight: bold; color: #333; font-family: inherit; text-align: left; width: 120px; background: transparent; border-bottom: 1px dashed #ccc; margin-left: 0; }
+        .editable-text { border: none; font-size: 18px; font-weight: bold; color: #333; font-family: inherit; text-align: left; width: 120px; background: transparent; border-bottom: 1px dashed #ccc; margin-left: 0; }
+
+        .report-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+        .header-title h1 { margin: 0; font-size: 34px; color: var(--mv-blue-deep); font-weight: 900; letter-spacing: -1px; }
+        .header-title p { margin: 4px 0 0; color: #666; font-weight: bold; font-size: 15px; }
+        .header-right { text-align: right; }
+        .logo-img { height: 55px; margin-bottom: 5px; object-fit: contain; display: block; margin-left: auto; }
+        .header-info { font-size: 15px; color: #555; margin-top: 8px; } 
+        .info-row { margin-bottom: 6px; display: flex; justify-content: flex-end; align-items: center; } 
+        .info-label { font-weight: bold; margin-right: 8px; width: 45px; text-align: right; display: inline-block; }
+
+        .ranking-section { display: flex; gap: 15px; margin-bottom: 15px; height: 215px; }
+        .my-rank-card { flex: 0.8; background: #f9f9f9; border-radius: 12px; padding: 15px 15px; text-align: center; border: 1px solid #eee; display: flex; flex-direction: column; justify-content: center; }
+        .my-rank-title { font-size: 15px; color: #666; font-weight: bold; margin-bottom: 5px; }
+        .my-rank-num { font-size: 44px; font-weight: 900; color: var(--mv-blue-deep); line-height: 1; margin-bottom: 5px; }
+        .my-rank-suffix { font-size: 20px; color: #555; font-weight: bold; }
+        .my-team-rank-box { margin-top: 10px; background: white; padding: 8px; border-radius: 8px; border: 1px solid #eee; text-align: left; box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
+        .team-detail-line { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 4px; }
+        .team-detail-line:last-child { margin-bottom: 0; padding-top: 4px; border-top: 1px dashed #eee; }
+        .team-hl { color: var(--mv-orange); font-weight: bold; font-size: 15px; }
+
+        .fame-card { flex: 1.4; background: #fff; border: 2px solid var(--mv-yellow); border-radius: 12px; padding: 15px; padding-bottom: 10px; display: flex; flex-direction: column; overflow: hidden; }
+        .fame-title { font-size: 13px; background: var(--mv-yellow); color: #333; padding: 4px 10px; border-radius: 4px; font-weight: bold; display: inline-block; margin-bottom: 15px; align-self: flex-start; }
+        .fame-split-container { display: flex; gap: 15px; height: 100%; width: 100%; }
+        .fame-col { flex: 1; }
+        .fame-col.separator { border-right: 1px dashed #ddd; padding-right: 15px; }
+        .fame-col-title { font-size: 13px; font-weight: 800; color: #666; border-bottom: 2px solid #eee; margin-bottom: 10px; padding-bottom: 2px; }
+        .top3-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; align-items: center;}
+        .rank-1st { color: #d4a000; font-weight:bold; } 
+        .rank-name { font-weight: bold; color: #333; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 85px; }
+
+        .asset-box { display: flex; align-items: center; justify-content: space-between; background: linear-gradient(to right, #fcfcfc, #f4f8ff); border-radius: 12px; padding: 10px 25px; margin-bottom: 15px; border: 1px solid #eee; height: 95px; }
+        .asset-text .money { font-size: 38px; font-weight: 900; color: #333; letter-spacing: -1px; }
+        .asset-detail { margin-top: 3px; font-size: 13px; display: flex; align-items: center; }
+        .chart-container { position: relative; width: 90px; height: 90px; flex-shrink: 0; }
+        .chart-center { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; pointer-events: none; }
+        .chart-center div:first-child { font-size: 9px; font-weight: bold; color: #666; line-height: 1.2; margin-bottom: 0px; }
+        .chart-center div:last-child { font-size: 15px; font-weight: 900; color: var(--mv-blue-deep); line-height: 1.2; }
+
+        .section-header { font-size: 16px; font-weight: 800; color: var(--mv-blue-deep); border-left: 6px solid var(--mv-yellow); padding-left: 10px; margin: 15px 0 8px 0; }
+        .portfolio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+        .stock-card { border: 1px solid #ddd; border-radius: 10px; padding: 8px; text-align: center; background: #fff; }
+        .stock-logo { width: 28px; height: 28px; border-radius: 50%; margin: 0 auto 4px; color: white !important; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 12px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        .stock-val { font-size: 15px; font-weight: 800; color: var(--mv-blue-deep); }
+        .stock-cnt { font-size: 12px; color: #888; }
+        .booth-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; flex-grow: 1; }
+        .booth-item { border: 1px solid #eee; border-radius: 8px; padding: 5px 8px; display: flex; align-items: center; gap: 10px; background: #fbfbfb; }
+        .booth-icon { font-size: 30px; min-width: 35px; text-align: center; } 
+        .booth-text h4 { margin: 0; font-size: 14px; color: var(--mv-blue-deep); font-weight: 900; }
+        .booth-text p { margin: 1px 0 0; font-size: 12px; color: #555; line-height: 1.1; } 
+
+        /* [명예의 전당 레이아웃] */
+        .fame-only .section-title { 
+            font-size: 20px; font-weight: 900; color: var(--mv-blue-deep); 
+            border-left: 7px solid var(--mv-yellow); padding-left: 12px; 
+            margin: 15px 0 8px 0; 
+            display: flex; align-items: center; gap: 8px;
+        }
+        .ranking-table { width: 100%; border-collapse: collapse; margin-bottom: 5px; table-layout: fixed; }
+        .ranking-table th { 
+            background: #f4f8ff; color: var(--mv-blue-deep); font-weight: 800; padding: 7px 5px; 
+            text-align: center; border-bottom: 2px solid #dbeafe; font-size: 13px;
+        }
+        .ranking-table td { 
+            padding: 7px 5px; border-bottom: 1px solid #eee; 
+            vertical-align: middle; 
+        }
+        .rank-col { text-align: center; font-weight: 900; font-size: 16px; }
+        .rank-1 { color: #d4a000; font-size: 22px; } 
+        .rank-2 { color: #a6a6a6; font-size: 20px; } 
+        .rank-3 { color: #a05a2c; font-size: 18px; } 
+        .rank-other { color: #888; font-size: 14px; }
+        
+        .name-col { font-weight: 800; color: #333; font-size: 15px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: center; }
+        .asset-col { text-align: right; font-weight: 900; color: var(--mv-blue-deep); font-size: 15px; padding-right: 10px !important; }
+        .asset-col.top { color: #d4a000; font-size: 17px; } 
+        .sub-asset-col { text-align: right; color: #555; font-size: 12px; padding-right: 8px !important; }
+        .sub-asset-col.stock { color: #d32f2f; font-weight: bold; }
+        .date-col { text-align: center; color: #999; font-size: 12px; }
+        .member-col { font-size: 12px; color:#555; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-weight: bold; }
+        
+        /* 어워드 카드 */
+        .special-awards-container {
+            display: flex; gap: 15px; margin: 10px 0;
+            background: #f9f9f9; border: 1px dashed #ddd;
+            border-radius: 12px; padding: 12px;
+        }
+        .award-card {
+            flex: 1; background: white; border: 1px solid #eee; border-radius: 10px;
+            padding: 10px 15px; display: flex; align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        }
+        .award-icon { font-size: 32px; margin-right: 15px; }
+        .award-info { flex: 1; }
+        .award-title { font-size: 12px; color: #666; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
+        .award-name { font-size: 16px; font-weight: 900; color: #333; margin-bottom: 2px; }
+        .award-value { font-size: 14px; color: var(--mv-blue-deep); font-weight: 800; }
+        .hl-cash { color: #00897b; }
+        .hl-stock { color: #d32f2f; }
+        
+        /* 푸터 */
+        .fame-footer {
+            margin-top: auto; 
+            padding-top: 15px; border-top: 2px dashed #eee;
+            text-align: center; color: #666; font-size: 13px; font-weight: bold;
+        }
+        .fame-footer div:first-child { 
+            font-size: 15px; color: var(--mv-blue-deep); font-weight: 900; margin-bottom: 5px; 
+        }
+        
+        #loadingOverlay { position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.9); display:none; justify-content:center; align-items:center; z-index:99; flex-direction:column; }
+
+        /* [수정] 인쇄 시 백지 오류 해결 (높이 및 오버플로우 강제 설정) */
+        @media print {
+            @page {
+                size: A4;
+                margin: 0;
+            }
+            body, html {
+                margin: 0;
+                padding: 0;
+                width: 210mm;
+                height: 297mm; /* A4 정사이즈 강제 */
+                overflow: hidden !important; /* 넘치는 내용 잘라냄 (백지 방지) */
+                -webkit-print-color-adjust: exact;
+            }
+            .container {
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            
+            /* 모든 불필요 요소 숨김 */
+            .setup-card, .dashboard-layout, .report-controls, .screen { display: none !important; }
+            
+            /* 활성화된 화면만 표시 */
+            .screen.active-screen {
+                display: block !important;
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100%;
+            }
+            
+            /* 내부 용지 스타일 */
+            .report-paper {
+                box-shadow: none; border: none;
+                padding: 10mm;
+                width: 210mm;
+                height: 297mm !important; /* A4 높이 강제 */
+                margin: 0 !important;
+                transform: none;
+                page-break-inside: avoid;
+                page-break-after: avoid; /* 페이지 나눔 방지 */
+                overflow: hidden;
+                
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+            }
+            
+            #pdfAreaFame {
+                display: flex;
+                flex-direction: column;
+                height: 297mm;
+            }
+            
+            .fame-footer {
+                margin-top: auto;
+                padding-bottom: 5mm;
+            }
+
+            .stock-card, .booth-item, .ranking-section { break-inside: avoid; }
+            .editable-input, .editable-date, .editable-text { border-bottom: none !important; background: transparent !important; -webkit-appearance: none; appearance: none; padding: 0; margin: 0; }
+            .editable-input { width: auto; min-width: 10px; text-align: right; } 
+            .editable-date, .editable-text { text-align: left; }
+            .ranking-table th { background: #f4f8ff !important; -webkit-print-color-adjust: exact; }
+            .award-card { background: #fff !important; -webkit-print-color-adjust: exact; }
+            .special-awards-container { background: #f9f9f9 !important; -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <div id="setupScreen" class="screen active-screen">
+        <div class="setup-card">
+            <h1 style="color:var(--mv-blue-deep);">머니빌리지 게임 설정</h1>
+            <button class="btn btn-fame" style="width:100%; padding:15px; margin-bottom:20px; font-size:16px; justify-content: center; font-weight:900;" onclick="showFameScreen()">🏆 명예의 전당 입장</button>
+
+            <div class="logo-uploader">
+                <div style="font-weight:bold; margin-bottom:5px;">로고 이미지 설정 (선택)</div>
+                <input type="file" id="logoInput" accept="image/*" onchange="loadLogo(event)">
+                <div style="font-size:12px; color:#888; margin-top:5px;">파일을 선택하면 성적표 우측 상단에 표시됩니다.</div>
+            </div>
+            <div class="stock-config-area">
+                <div class="stock-config-title">📈 주식 가격 설정 (4R)</div>
+                <div class="stock-inputs-grid" id="stockConfigInputs"></div>
+            </div>
+            <div class="mode-select">
+                <div class="mode-btn selected" onclick="selectMode('individual')" id="btnIndiv">👤 개인전</div>
+                <div class="mode-btn" onclick="selectMode('team')" id="btnTeam">👥 팀전</div>
+            </div>
+            <div id="individualConfig"><div class="input-row">참가 인원: <input type="number" id="playerCount" value="4" min="1" class="input-num"> 명</div></div>
+            <div id="teamConfig" style="display:none;">
+                <div class="input-row">팀 개수: <input type="number" id="teamCount" value="2" min="2" class="input-num"> 팀</div>
+                <div class="input-row">팀당 인원: <input type="number" id="memberPerTeam" value="3" min="1" class="input-num"> 명</div>
+            </div>
+            <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; justify-content: center;" onclick="generateInputs()">명단 입력하기 ▼</button>
+            <div id="nameInputArea" class="player-list-input"></div>
+            <button id="startGameBtn" class="btn btn-success" style="display:none; width:100%; margin-top:20px; font-size:18px; padding:15px; justify-content: center;" onclick="startGame()">🚀 게임 시작</button>
+            <div style="margin-top:30px; border-top:1px dashed #ddd; padding-top:10px;">
+                <button class="btn btn-purple btn-setup-big" onclick="runSample('individual')">🧪 개인전 샘플</button>
+                <button class="btn btn-purple btn-setup-big" onclick="runSample('team')">🧪 팀전 샘플</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="countingScreen" class="screen">
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-primary" onclick="location.reload()">🔄 처음으로</button>
+                <button id="connectBtn" class="btn btn-dark">🔌 계수기 연결 <span id="connStatus" style="color:#ffcc80"></span></button>
+            </div>
+            <button class="btn btn-success" onclick="finishGame()">🏆 결과 발표 (계수 종료)</button>
+        </div>
+        <div class="dashboard-layout">
+            <div class="sidebar">
+                <h3 style="margin-top:0; color:var(--mv-blue-deep);">참가자 목록</h3>
+                <div id="sidebarList"></div>
+            </div>
+            <div class="dashboard-main">
+                <div class="count-card">
+                    <div style="color:#888; font-size:14px;">현재 계수 중 (수동 입력 가능)</div>
+                    <div id="displayPlayerName" style="font-size:32px; font-weight:900; color:var(--mv-blue-deep); margin-bottom:5px;">-</div>
+                    <div id="displayTotalAsset" style="font-size:50px; font-weight:900; color:#333;">0 원</div>
+                    <div style="margin-top:10px;">
+                        <span style="color:var(--mv-blue-light)">●</span> 현금: 
+                        <input type="number" id="cntCashInput" class="editable-input" value="0" style="width:100px; font-size:18px; text-align:center;" onchange="updateManualOnCounting()"> 원
+                        &nbsp;&nbsp; 
+                        <span style="color:var(--mv-yellow)">●</span> 주식: <b id="displayStock">0</b> 원
+                    </div>
+                </div>
+                <div class="count-card">
+                    <h4>보유 주식 (4R 현재가)</h4>
+                    <div class="portfolio-grid-sm" id="stockGridSm"></div>
+                </div>
+                <div style="text-align:center; color:#d32f2f; background:#ffebee; padding:10px; border-radius:10px; font-weight:bold;">
+                    ⚠️ 계수기 연결 버튼은 비활성화되어 있습니다. 직접 숫자를 입력하세요!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="reportScreen" class="screen">
+        <div class="report-controls">
+            <div style="font-size:18px; font-weight:bold; white-space:nowrap; margin-right:10px;">🎓 자산 성적표</div>
+            <div style="display:flex; align-items:center;">
+                <button class="btn btn-dark" style="background:#607d8b; margin-right:10px;" id="btnEditPrev" onclick="switchScreen('countingScreen')">✏️ 수정(이전으로)</button>
+                <button class="btn btn-dark" onclick="prevPlayer()">◀ 이전</button>
+                <span id="pageIndicator" style="margin:0 8px; font-size:14px; white-space:nowrap;"></span>
+                <button class="btn btn-dark" onclick="nextPlayer()">다음 ▶</button>
+                <div style="width:10px;"></div>
+                <button class="btn btn-drive" id="btnSaveDrive" onclick="saveToDrive()">☁️ 드라이브 저장</button>
+                <button class="btn btn-danger" onclick="downloadPDF('report')">📄 PDF 저장</button>
+                <button class="btn btn-success" onclick="printReport()">🖨️ 출력</button>
+                <button class="btn btn-primary" onclick="location.reload()">🔄 처음으로</button>
+            </div>
+        </div>
+
+        <div class="report-paper" id="pdfAreaReport">
+            <div class="report-header">
+                <div class="header-left">
+                    <div class="header-title">
+                        <h1>자산 리포트</h1>
+                        <p>Money Village Asset Report</p>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <img id="rptLogoImg" src="" alt="로고" class="logo-img" style="display:none;">
+                    <div id="rptLogoText" style="font-size:20px; font-weight:900; color:var(--mv-blue-deep); margin-bottom:5px;">코드코드영재학원</div>
+                    
+                    <div class="header-info">
+                        <div class="info-row">
+                            <span id="rptTeamWrapper" style="display:none; margin-right:10px;">
+                                <span class="info-label">팀명:</span>
+                                <input type="text" id="rptTeamInput" class="editable-text" style="width:80px;" onchange="updateTeamName()">
+                            </span>
+                            <span class="info-label">이름:</span>
+                            <input type="text" id="rptNameInput" class="editable-text" style="width:100px;" onchange="updatePlayerName()">
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">날짜:</span>
+                            <input type="text" id="rptDateInput" class="editable-date">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ranking-section">
+                <div class="my-rank-card">
+                    <div class="my-rank-title">나의 최종 순위</div>
+                    <div><span class="my-rank-num" id="rptRankIndiv">-</span><span class="my-rank-suffix">위</span></div>
+                    <div style="font-size:13px; color:#999;">(전체 <span id="rptTotalPlayers">0</span>명 중)</div>
+                    <div id="rptTeamSection" class="my-team-rank-box" style="display:none;">
+                        <div class="team-detail-line"><span>소속</span> <strong id="rptTeamDisplay" style="color:#333;">-</strong></div>
+                        <div class="team-detail-line"><span>팀 순위</span> <strong class="team-hl"><span id="rptRankTeam">-</span>위</strong></div>
+                        <div class="team-detail-line"><span style="color:#888;">팀 총자산</span> <strong style="color:#00498c; font-size:13px;"><span id="rptTeamTotalAsset">0</span>원</strong></div>
+                    </div>
+                </div>
+                <div class="fame-card">
+                    <div class="fame-title">🏆 명예의 전당 (Top 3)</div>
+                    <div id="top3Container"></div>
+                </div>
+            </div>
+
+            <div class="asset-box">
+                <div class="asset-text">
+                    <div class="label" style="font-size:15px; font-weight:bold; color:#555;">총 자산 (현금 + 주식)</div>
+                    <div class="money" id="rptTotalAsset">0 원</div>
+                    <div class="asset-detail">
+                        <span style="color:var(--mv-blue-light)">●</span>&nbsp;현금: 
+                        <input type="number" id="rptCashInput" class="editable-input" style="width:90px;" value="0" onchange="manualUpdate()"> 원
+                        &nbsp;&nbsp; 
+                        <span style="color:var(--mv-yellow)">●</span>&nbsp;주식: <span id="rptStock">0</span> 원
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <svg width="90" height="90" viewBox="0 0 100 100" id="rptSvgChart">
+                        <circle cx="50" cy="50" r="50" fill="#ffc600" /> 
+                        <path id="rptSvgPath" d="" fill="#0072ce" />
+                        <circle cx="50" cy="50" r="35" fill="white" />
+                    </svg>
+                    <div class="chart-center">
+                        <div>현금비중</div>
+                        <div id="rptCashPct" style="font-size:14px;">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-header">나의 주식 포트폴리오</div>
+            <div class="portfolio-grid" id="rptStockGrid"></div>
+
+            <div class="section-header">경제 활동 가이드</div>
+            <div class="booth-grid">
+                <div class="booth-item"><div class="booth-icon">👷</div><div class="booth-text"><h4>노동</h4><p>성실한 미션 수행과 보상</p></div></div>
+                <div class="booth-item"><div class="booth-icon">🏦</div><div class="booth-text"><h4>은행</h4><p>저축을 통한 이자 수익</p></div></div>
+                <div class="booth-item"><div class="booth-icon">📈</div><div class="booth-text"><h4>주식</h4><p>시장 분석을 통한 투자</p></div></div>
+                <div class="booth-item"><div class="booth-icon">🎓</div><div class="booth-text"><h4>직업</h4><p>전문성을 높여 수익 증가</p></div></div>
+                <div class="booth-item"><div class="booth-icon">🍀</div><div class="booth-text"><h4>행운</h4><p>우연한 기회와 행운 포착</p></div></div>
+                <div class="booth-item"><div class="booth-icon">⚔️</div><div class="booth-text"><h4>퀘스트</h4><p>도전과 성취 보상</p></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="fameScreen" class="screen">
+        <div class="report-controls">
+            <div style="font-size:18px; font-weight:bold;">🏆 명예의 전당</div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-primary" onclick="switchScreen('setupScreen')">🏠 처음으로</button>
+                <button class="btn btn-purple" onclick="loadFameSamples()">🧪 샘플 보기</button>
+                <button class="btn btn-drive" onclick="fetchFameData()">🔄 데이터 새로고침</button>
+                <button class="btn btn-danger" onclick="downloadPDF('fame')">📄 PDF 저장</button>
+                <button class="btn btn-success" onclick="printFame()">🖨️ 출력</button>
+            </div>
+        </div>
+
+        <div class="report-paper fame-only" id="pdfAreaFame">
+            <div id="loadingOverlay">
+                <div style="font-size:40px; margin-bottom:10px;">⏳</div>
+                <div style="font-weight:bold; color:#555;">클라우드에서 데이터를 불러오는 중...</div>
+            </div>
+
+            <div class="report-header">
+                <div class="header-left">
+                    <div class="header-title">
+                        <h1><span>🏆</span> 머니빌리지 명예의 전당</h1>
+                        <p>Money Village Hall of Fame : 역대 최고 자산가 랭킹</p>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <img id="fameLogoImg" src="" alt="로고" class="logo-img" style="display:none;">
+                    <div id="fameLogoText" class="logo-text" style="font-size:22px; font-weight:900; color:var(--mv-blue-deep); margin-bottom:5px;">코드코드영재학원</div>
+                    <div style="font-size:14px; color:#888; font-weight:bold;">Last Update: <span id="todayDate">-</span></div>
+                </div>
+            </div>
+
+            <div class="fame-only section-title" style="margin-top:5px;">👤 개인전 역대 Top 10 (Individual)</div>
+            <table class="ranking-table">
+                <colgroup><col style="width: 8%"><col style="width: 22%"><col style="width: 20%"><col style="width: 17%"><col style="width: 17%"><col style="width: 16%"></colgroup>
+                <thead><tr><th>순위</th><th>이름</th><th>총 자산</th><th>현금</th><th>주식</th><th>달성 날짜</th></tr></thead>
+                <tbody id="indivTableBody"></tbody>
+            </table>
+
+            <div class="special-awards-container">
+                <div class="award-card">
+                    <div class="award-icon">💵</div>
+                    <div class="award-info">
+                        <div class="award-title hl-cash">Personal Cash King</div>
+                        <div class="award-name" id="awardCashName">-</div>
+                        <div class="award-value">현금 보유액: <span id="awardCashVal">0</span> 원</div>
+                    </div>
+                </div>
+                <div class="award-card">
+                    <div class="award-icon">📈</div>
+                    <div class="award-info">
+                        <div class="award-title hl-stock">Personal Stock King</div>
+                        <div class="award-name" id="awardStockName">-</div>
+                        <div class="award-value">주식 평가액: <span id="awardStockVal">0</span> 원</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="fame-only section-title">👥 팀전 역대 Top 5 (Team)</div>
+            <table class="ranking-table">
+                <colgroup><col style="width: 8%"><col style="width: 22%"><col style="width: 22%"><col style="width: 33%"><col style="width: 15%"></colgroup>
+                <thead><tr><th>순위</th><th>팀명</th><th>팀 총 자산</th><th>팀원 (Top 4 기여)</th><th>달성 날짜</th></tr></thead>
+                <tbody id="teamTableBody"></tbody>
+            </table>
+
+            <div class="fame-footer">
+                <div style="font-size:15px; color:var(--mv-blue-deep); font-weight:900; margin-bottom:5px;">“투자는 오늘의 씨앗을 심고, 열매가 맺힐 때까지 기다릴 줄 아는 거예요”</div>
+                ✨ 다음 전설의 주인공은 바로 당신입니다! 머니빌리지에 도전하세요! ✨
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // [1] 데이터 및 설정
+    let currentMode = 'individual';
+    let players = [];
+    let viewingPlayerIndex = 0;
+    let activeCountingIndex = 0;
+    let customLogoData = null; 
+    let fameIndivData = [];
+    let fameTeamData = [];
+    let isSampleMode = false;
+
+    // ★ [중요] 사용자가 제공한 Apps Script URL
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbze3f3-uQvlDAf3uD7sMqrarPjfOZhLiqUqpFe6joQI_4I5vHG2Zp9VWqsVxWe9vQoukQ/exec";
+
+    const stockInfo = {
+        "SASUNG": { name: "SASUNG", price: 1500, color: "#1428a0" },
+        "LGI":    { name: "LGI",   price: 600,  color: "#a50034" },
+        "SKEI":   { name: "SKEI",   price: 1600, color: "#ff6600" },
+        "CACAO":  { name: "CACAO", price: 4000, color: "#fee500", textColor: "#3c1e1e" },
+        "HYUNDAE":{ name: "HYUNDE", price: 6000, color: "#002c5f" },
+        "NABER":  { name: "NABER", price: 7000, color: "#03c75a" }
+    };
+
+    window.onload = initStockConfig;
+    
+    function switchScreen(id){ 
+        document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active-screen')); 
+        document.getElementById(id).classList.add('active-screen'); 
+        
+        document.querySelectorAll('.report-paper').forEach(p => p.classList.remove('active-print'));
+        if(id === 'reportScreen') document.getElementById('pdfAreaReport').classList.add('active-print');
+        if(id === 'fameScreen') document.getElementById('pdfAreaFame').classList.add('active-print');
+    }
+
+    function initStockConfig() {
+        const grid = document.getElementById('stockConfigInputs');
+        grid.innerHTML = '';
+        for(let k in stockInfo) {
+            grid.innerHTML += `<div class="stock-input-item"><label>${stockInfo[k].name}</label><input type="number" id="conf_${k}" value="${stockInfo[k].price}"></div>`;
+        }
+    }
+    function selectMode(m) {
+        currentMode = m;
+        document.getElementById('btnIndiv').className = m==='individual' ? 'mode-btn selected' : 'mode-btn';
+        document.getElementById('btnTeam').className = m==='team' ? 'mode-btn selected' : 'mode-btn';
+        document.getElementById('individualConfig').style.display = m==='individual'?'block':'none';
+        document.getElementById('teamConfig').style.display = m==='team'?'block':'none';
+    }
+    function generateInputs() {
+        const area = document.getElementById('nameInputArea');
+        area.innerHTML = '';
+        if(currentMode === 'individual') {
+            const cnt = document.getElementById('playerCount').value;
+            for(let i=0; i<cnt; i++) area.innerHTML += makeInp(`참가자 ${i+1}`, `참가자 ${i+1}`);
+        } else {
+            const tCnt = document.getElementById('teamCount').value;
+            const mCnt = document.getElementById('memberPerTeam').value;
+            for(let t=0; t<tCnt; t++){
+                let team = String.fromCharCode(65+t)+"팀";
+                area.innerHTML += `<div class="team-header">${team} 명단</div>`;
+                for(let m=0; m<mCnt; m++) area.innerHTML += makeInp(`${team} 참가자${m+1}`, `참가자${m+1}`, team);
+            }
+        }
+        document.getElementById('startGameBtn').style.display = 'block';
+    }
+    function makeInp(lbl, val, team='') {
+        return `<div class="p-input-group"><span style="width:110px; font-weight:bold; color:#555; font-size:14px;">${lbl}</span><input type="text" value="${val}" data-team="${team}"></div>`;
+    }
+    function startGame() {
+        isSampleMode = false;
+        document.getElementById('btnEditPrev').style.display = 'inline-flex';
+        
+        for(let k in stockInfo) {
+            const v = document.getElementById(`conf_${k}`).value;
+            if(v) stockInfo[k].price = parseInt(v);
+        }
+        players = [];
+        document.querySelectorAll('#nameInputArea input').forEach((inp, i) => {
+            players.push({
+                id: i, name: inp.value, team: inp.dataset.team || '-',
+                assets: initAssets(), total: 0, rankIndiv: 0, rankTeam: 0, teamTotal: 0, manualCash: 0
+            });
+        });
+        if(players.length===0) return alert("명단을 입력하세요.");
+        switchScreen('countingScreen');
+        renderSidebar();
+        selectCountingPlayer(0);
+    }
+    function initAssets(){ return { "100":0,"500":0,"1000":0,"5000":0,"10000":0,"50000":0,"SASUNG":0,"LGI":0,"SKEI":0,"CACAO":0,"HYUNDAE":0,"NABER":0 }; }
+
+    function renderSidebar() {
+        const list = document.getElementById('sidebarList');
+        list.innerHTML = '';
+        players.forEach((p, i) => {
+            list.innerHTML += `<div class="player-list-item" id="pItem_${i}" onclick="selectCountingPlayer(${i})">
+                <div>${p.team!=='-'?`<span style='font-size:11px; color:#888;'>[${p.team}]</span> `:''}${p.name}</div>
+                <span class="status-badge" id="badge_${i}">대기</span>
+            </div>`;
+        });
+        initStockGrid('stockGridSm', false, true); 
+    }
+    function selectCountingPlayer(i) {
+        if(players[activeCountingIndex]?.total > 0) {
+            document.getElementById(`pItem_${activeCountingIndex}`).classList.remove('active');
+            document.getElementById(`pItem_${activeCountingIndex}`).classList.add('done');
+            document.getElementById(`badge_${activeCountingIndex}`).innerText="완료";
+        }
+        activeCountingIndex = i;
+        document.getElementById(`pItem_${i}`).classList.add('active');
+        updateDash();
+    }
+    function updateDash() {
+        const p = players[activeCountingIndex];
+        document.getElementById('displayPlayerName').innerText = p.name;
+        let cash = p.manualCash; 
+        let stock = calcStock(p.assets);
+        p.total = cash + stock;
+        document.getElementById('displayTotalAsset').innerText = p.total.toLocaleString() + " 원";
+        document.getElementById('cntCashInput').value = cash;
+        document.getElementById('displayStock').innerText = stock.toLocaleString();
+        for(let k in stockInfo) {
+            document.getElementById(`ui_val_${k}`).innerText = (p.assets[k]*stockInfo[k].price).toLocaleString();
+            const input = document.getElementById(`ui_cnt_input_${k}`);
+            if(input) input.value = p.assets[k];
+        }
+    }
+    function updateManualOnCounting() {
+        const p = players[activeCountingIndex];
+        p.manualCash = parseInt(document.getElementById('cntCashInput').value) || 0;
+        for(let k in stockInfo) {
+            const input = document.getElementById(`ui_cnt_input_${k}`);
+            if(input) p.assets[k] = parseInt(input.value) || 0;
+        }
+        updateDash(); 
+    }
+    function initStockGrid(id, sm, isCountingScreen=false) {
+        const grid = document.getElementById(id);
+        grid.innerHTML = '';
+        for(let k in stockInfo) {
+            const s = stockInfo[k];
+            const colorStyle = `background:${s.color} !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color:${s.textColor||'#fff'} !important; border:${k==='CACAO'?'1px solid #ddd':'none'};`;
+            const prefix = isCountingScreen ? 'ui' : 'rpt';
+            const changeHandler = isCountingScreen ? 'updateManualOnCounting()' : 'manualUpdate()';
+            const priceDisplay = `<div style="font-size:11px; color:#999; margin-bottom:2px;">1주: ${s.price.toLocaleString()}원</div>`;
+
+            grid.innerHTML += `<div class="${sm?'stock-item-sm':'stock-card'}">
+                <div class="stock-logo" style="${colorStyle}">${k[0]}</div>
+                <div style="font-weight:bold; color:#555;">${s.name}</div>
+                ${priceDisplay}
+                <div class="${sm?'':'stock-val'}" id="${prefix}_val_${k}">0원</div>
+                <div class="${sm?'':'stock-cnt'}" id="${prefix}_cnt_${k}">
+                    <input type="number" id="${prefix}_cnt_input_${k}" class="editable-input" style="width:40px;" min="0" onchange="${changeHandler}"> 주
+                </div>
+            </div>`;
+        }
+    }
+
+    function finishGame() {
+        if(!confirm("결과를 발표하시겠습니까?")) return;
+        recalculateAllRankings();
+        switchScreen('reportScreen');
+        initStockGrid('rptStockGrid', false, false);
+        viewingPlayerIndex = 0;
+        showReport(0);
+    }
+    function recalculateAllRankings() {
+        players.forEach(p => { p.total = p.manualCash + calcStock(p.assets); });
+        let sorted = [...players].sort((a,b) => b.total - a.total);
+        sorted.forEach((p, i) => p.rankIndiv = i + 1);
+        if(currentMode === 'team') {
+            let teamMap = {};
+            players.forEach(p => { if(!teamMap[p.team]) teamMap[p.team] = 0; teamMap[p.team] += p.total; });
+            let sortedTeams = Object.keys(teamMap).sort((a,b) => teamMap[b] - teamMap[a]);
+            players.forEach(p => { p.rankTeam = sortedTeams.indexOf(p.team) + 1; p.teamTotal = teamMap[p.team]; });
+        }
+    }
+    function showReport(idx) {
+        const p = players[idx];
+        document.getElementById('pageIndicator').innerText = `${idx+1} / ${players.length}`;
+        const today = new Date();
+        document.getElementById('rptDateInput').value = `${today.getFullYear()}. ${today.getMonth()+1}. ${today.getDate()}.`;
+        
+        if(customLogoData) {
+            document.getElementById('rptLogoImg').src = customLogoData;
+            document.getElementById('rptLogoImg').style.display = 'block';
+            document.getElementById('rptLogoText').style.display = 'none';
+        } else {
+            document.getElementById('rptLogoImg').style.display = 'none';
+            document.getElementById('rptLogoText').style.display = 'block';
+        }
+        document.getElementById('rptNameInput').value = p.name;
+        if(currentMode === 'team') {
+            document.getElementById('rptTeamWrapper').style.display = 'inline-block';
+            document.getElementById('rptTeamInput').value = p.team;
+        } else {
+            document.getElementById('rptTeamWrapper').style.display = 'none';
+        }
+        document.getElementById('rptCashInput').value = p.manualCash;
+        for(let k in stockInfo) {
+            document.getElementById(`rpt_cnt_input_${k}`).value = p.assets[k];
+            document.getElementById(`rpt_val_${k}`).innerText = (p.assets[k] * stockInfo[k].price).toLocaleString() + "원";
+        }
+        updateRankUI(p);
+        refreshDisplayOnly(p);
+    }
+
+    function updatePlayerName() { players[viewingPlayerIndex].name = document.getElementById('rptNameInput').value; updateTop3List(); }
+    function updateTeamName() {
+        const oldName = players[viewingPlayerIndex].team;
+        const newName = document.getElementById('rptTeamInput').value;
+        players.forEach(p => { if(p.team === oldName) p.team = newName; });
+        recalculateAllRankings();
+        showReport(viewingPlayerIndex);
+    }
+    function manualUpdate() {
+        const p = players[viewingPlayerIndex];
+        p.manualCash = parseInt(document.getElementById('rptCashInput').value) || 0;
+        for(let k in stockInfo) { p.assets[k] = parseInt(document.getElementById(`rpt_cnt_input_${k}`).value) || 0; }
+        recalculateAllRankings();
+        updateRankUI(p);
+        refreshDisplayOnly(p);
+    }
+    function updateRankUI(p) {
+        document.getElementById('rptRankIndiv').innerText = p.rankIndiv;
+        document.getElementById('rptTotalPlayers').innerText = players.length;
+        if(currentMode === 'team') {
+            document.getElementById('rptTeamSection').style.display = 'block';
+            document.getElementById('rptTeamDisplay').innerText = p.team; 
+            document.getElementById('rptRankTeam').innerText = p.rankTeam;
+            document.getElementById('rptTeamTotalAsset').innerText = p.teamTotal.toLocaleString();
+        } else { document.getElementById('rptTeamSection').style.display = 'none'; }
+        updateTop3List();
+    }
+    function updateTop3List() {
+        const container = document.getElementById('top3Container');
+        container.innerHTML = '';
+        if(currentMode === 'team') {
+            container.innerHTML = `<div class="fame-split-container"><div class="fame-col separator" id="indivTop3"><div class="fame-col-title">개인 TOP 3</div></div><div class="fame-col" id="teamTop3"><div class="fame-col-title">팀 TOP 3</div></div></div>`;
+            const indivList = document.getElementById('indivTop3');
+            [...players].sort((a,b) => b.total - a.total).slice(0,3).forEach((r, i) => { indivList.innerHTML += makeTop3Html(i, r.name, r.total); });
+            const teamMap = {};
+            players.forEach(p => { if(!teamMap[p.team]) teamMap[p.team]=0; teamMap[p.team] += p.total; });
+            const teamRanked = Object.keys(teamMap).map(k=>({name:k, total:teamMap[k]})).sort((a,b)=>b.total-a.total).slice(0,3);
+            const teamList = document.getElementById('teamTop3');
+            teamRanked.forEach((t, i) => { teamList.innerHTML += makeTop3Html(i, t.name, t.total); });
+        } else {
+            [...players].sort((a,b) => b.total - a.total).slice(0,3).forEach((r, i) => { container.innerHTML += makeTop3Html(i, r.name, r.total); });
+        }
+    }
+    function makeTop3Html(i, name, total) {
+        let cls = i===0?'rank-1st':'';
+        let medal = i===0?'🥇':(i===1?'🥈':'🥉');
+        return `<div class="top3-item"><div style="width:45px; text-align:left; font-weight:bold;" class="${cls}">${medal} ${i+1}위</div><div style="flex:1; text-align:left; font-weight:bold; color:#333; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${name}</div><div style="text-align:right; font-weight:normal; color:#555;">${total.toLocaleString()}원</div></div>`;
+    }
+    function refreshDisplayOnly(p) {
+        let stockSum = calcStock(p.assets);
+        let total = p.manualCash + stockSum;
+        document.getElementById('rptTotalAsset').innerText = total.toLocaleString() + " 원";
+        document.getElementById('rptStock').innerText = stockSum.toLocaleString();
+        for(let k in stockInfo) { document.getElementById(`rpt_val_${k}`).innerText = (p.assets[k] * stockInfo[k].price).toLocaleString() + "원"; }
+        let pct = total > 0 ? Math.round((p.manualCash / total) * 100) : 0;
+        document.getElementById('rptCashPct').innerText = pct + "%";
+        const radius = 50, center = 50;
+        if (pct >= 100) document.getElementById('rptSvgPath').setAttribute('d', `M ${center} ${center} m -${radius}, 0 a ${radius},${radius} 0 1,0 ${radius*2},0 a ${radius},${radius} 0 1,0 -${radius*2},0`);
+        else if (pct <= 0) document.getElementById('rptSvgPath').setAttribute('d', '');
+        else {
+            const angle = (pct / 100) * 360;
+            const rad = (angle - 90) * (Math.PI / 180);
+            const x = center + radius * Math.cos(rad);
+            const y = center + radius * Math.sin(rad);
+            const largeArc = angle > 180 ? 1 : 0;
+            document.getElementById('rptSvgPath').setAttribute('d', `M ${center} ${center} L ${center} ${center-radius} A ${radius} ${radius} 0 ${largeArc} 1 ${x} ${y} Z`);
+        }
+    }
+    function prevPlayer() { if(viewingPlayerIndex>0) { viewingPlayerIndex--; showReport(viewingPlayerIndex); } }
+    function nextPlayer() { if(viewingPlayerIndex<players.length-1) { viewingPlayerIndex++; showReport(viewingPlayerIndex); } }
+    
+    function downloadPDF(type) {
+        const id = type === 'report' ? 'pdfAreaReport' : 'pdfAreaFame';
+        const name = type === 'report' ? document.getElementById('rptNameInput').value : '명예의전당';
+        html2pdf().set({ margin: 0, filename: `머니빌리지_${name}.pdf`, image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(document.getElementById(id)).save();
+    }
+    function printReport() { window.print(); }
+    function printFame() { window.print(); }
+
+    async function saveToDrive() {
+        if (isSampleMode) {
+            alert("⚠️ 견본(샘플) 데이터는 드라이브에 저장할 수 없습니다.\n실제 게임을 진행한 후 저장해주세요.");
+            return;
+        }
+
+        if (!confirm("현재 게임 결과를 [명예의 전당] 데이터베이스에 저장하시겠습니까?")) return;
+
+        const exportData = {
+            individuals: players.map(p => ({
+                name: p.name, total: p.total, manualCash: p.manualCash, stockVal: p.total - p.manualCash
+            })),
+            teams: []
+        };
+        
+        if (currentMode === 'team') {
+            let teamMap = {};
+            players.forEach(p => {
+                if (!teamMap[p.team]) teamMap[p.team] = { total: 0, memberObjs: [] };
+                teamMap[p.team].total += p.total;
+                teamMap[p.team].memberObjs.push(p);
+            });
+            
+            for (let tName in teamMap) {
+                let sortedMembers = teamMap[tName].memberObjs.sort((a,b) => b.total - a.total);
+                let memberStr = sortedMembers.map(m => m.name).join(", ");
+                exportData.teams.push({
+                    name: tName, 
+                    total: teamMap[tName].total, 
+                    members: memberStr
+                });
+            }
+        }
+
+        const btn = document.getElementById('btnSaveDrive');
+        const originalText = btn.innerText;
+        btn.innerText = "⏳ 저장 중...";
+        btn.disabled = true;
+
+        try {
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(exportData)
+            });
+            alert("✅ 저장이 완료되었습니다!\n(참고: 데이터 반영까지 약 3~5초 소요될 수 있습니다)");
+        } catch (e) {
+            console.error(e);
+            alert("❌ 저장 실패! 인터넷 연결을 확인해주세요.");
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    // [7] 명예의 전당 로직
+    function showFameScreen() {
+        switchScreen('fameScreen');
+        if (customLogoData) {
+            document.getElementById('fameLogoImg').src = customLogoData;
+            document.getElementById('fameLogoImg').style.display = 'block';
+            document.getElementById('fameLogoText').style.display = 'none';
+        } else {
+            document.getElementById('fameLogoImg').style.display = 'none';
+            document.getElementById('fameLogoText').style.display = 'block';
+        }
+        
+        fetchFameData();
+    }
+    
+    async function fetchFameData() {
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        try {
+            const response = await fetch(SCRIPT_URL);
+            const json = await response.json();
+            
+            if (json.indiv && json.indiv.length > 0) {
+                fameIndivData = json.indiv.map(d => ({ 
+                    ...d, 
+                    total: Number(d.total), 
+                    cash: Number(d.manualCash), 
+                    stock: Number(d.stockVal) 
+                }));
+            } else {
+                fameIndivData = [];
+            }
+
+            if (json.team && json.team.length > 0) {
+                fameTeamData = json.team.map(d => ({ 
+                    ...d, 
+                    total: Number(d.total) 
+                }));
+            } else {
+                fameTeamData = [];
+            }
+
+            if (fameIndivData.length === 0 && fameTeamData.length === 0) {
+                loadFameSamples(false);
+            } else {
+                renderFame();
+                document.getElementById('todayDate').innerText = new Date().toLocaleDateString();
+            }
+        } catch (e) {
+            console.error("DB 로드 실패:", e);
+            loadFameSamples(false);
+        } finally {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+    }
+
+    // [★ 수정 완료] PDF 파일의 데이터를 정확히 입력했습니다.
+    function loadFameSamples(alertMsg = true) {
+        const S_INDIV = [
+            { name: "이영재", total: 6000000, cash: 2500000, stock: 3500000, date: "2025.12.25" },
+            { name: "정주식", total: 5500000, cash: 500000, stock: 5000000, date: "2026.01.10" },
+            { name: "강현금", total: 5200000, cash: 5000000, stock: 200000, date: "2025.12.30" },
+            { name: "김부자", total: 4850000, cash: 1850000, stock: 3000000, date: "2026.01.05" },
+            { name: "박스마트", total: 4120000, cash: 1120000, stock: 3000000, date: "2025.12.30" },
+            { name: "최성실", total: 3900000, cash: 900000, stock: 3000000, date: "2025.12.25" },
+            { name: "조전략", total: 3050000, cash: 1050000, stock: 2000000, date: "2026.01.05" },
+            { name: "윤행운", total: 2980000, cash: 980000, stock: 2000000, date: "2025.12.25" },
+            { name: "장투자", total: 2800000, cash: 800000, stock: 2000000, date: "2026.01.10" },
+            { name: "임저축", total: 2750000, cash: 2000000, stock: 750000, date: "2025.12.30" }
+        ];
+        const S_TEAM = [
+            { name: "어벤져스팀", total: 12500000, members: "김철수, 박민지, 최동훈, 이서연", date: "2026.01.05" },
+            { name: "황금거위팀", total: 10200000, members: "이영희, 정우성, 강동원, 한지민", date: "2025.12.30" },
+            { name: "미래에셋팀", total: 9800000, members: "장투자, 정주식, 박수익, 김성공", date: "2026.01.10" },
+            { name: "주식왕팀", total: 8500000, members: "최성실, 윤행운, 김노력, 이도전", date: "2025.12.25" },
+            { name: "티끌모아팀", total: 7200000, members: "임저축, 강현금, 송성실, 나부자", date: "2025.12.30" }
+        ];
+        fameIndivData = S_INDIV;
+        fameTeamData = S_TEAM;
+        renderFame();
+        document.getElementById('todayDate').innerText = "Sample Data";
+        if(alertMsg) alert("샘플 데이터를 불러왔습니다.");
+    }
+
+    function renderFame() {
+        fameIndivData.sort((a,b) => b.total - a.total);
+        fameTeamData.sort((a,b) => b.total - a.total);
+
+        renderRankingTable(fameIndivData.slice(0, 10), 'indivTableBody', false);
+        renderRankingTable(fameTeamData.slice(0, 5), 'teamTableBody', true);
+        setSpecialAwards(fameIndivData);
+    }
+
+    function renderRankingTable(data, tableId, isTeam) {
+        const tbody = document.getElementById(tableId);
+        tbody.innerHTML = '';
+        if(data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">데이터가 없습니다.</td></tr>`;
+            return;
+        }
+        data.forEach((item, index) => {
+            let rank = index + 1;
+            let rankDisplay = rank;
+            let rankClass = "rank-other";
+            let rowBg = "";
+            if (rank === 1) { rankDisplay = isTeam ? "🏆" : "🥇"; rankClass = "rank-1"; rowBg = "background:#fffbe6;"; }
+            else if (rank === 2) { rankDisplay = isTeam ? "2" : "🥈"; rankClass = "rank-2"; }
+            else if (rank === 3) { rankDisplay = isTeam ? "3" : "🥉"; rankClass = "rank-3"; }
+
+            let row = `<tr style="${rowBg}">
+                <td class="rank-col ${rankClass}">${rankDisplay}</td>
+                <td class="name-col">${item.name}</td>
+                <td class="asset-col ${rank === 1 ? 'top' : ''}">${item.total.toLocaleString()}</td>`;
+            if (isTeam) {
+                row += `<td class="member-col" style="font-size:12px; color:#555;">${item.members || '-'}</td>`;
+            } else {
+                row += `<td class="sub-asset-col">${item.cash ? item.cash.toLocaleString() : 0}</td>
+                        <td class="sub-asset-col stock">${item.stock ? item.stock.toLocaleString() : 0}</td>`;
+            }
+            row += `<td class="date-col">${item.date}</td></tr>`;
+            tbody.innerHTML += row;
+        });
+    }
+
+    function setSpecialAwards(data) {
+        if(data.length === 0) return;
+        let cashKing = [...data].sort((a,b) => b.cash - a.cash)[0];
+        let stockKing = [...data].sort((a,b) => b.stock - a.stock)[0];
+
+        if(cashKing) {
+            document.getElementById('awardCashName').innerText = cashKing.name;
+            document.getElementById('awardCashVal').innerText = cashKing.cash.toLocaleString();
+        }
+        if(stockKing) {
+            document.getElementById('awardStockName').innerText = stockKing.name;
+            document.getElementById('awardStockVal').innerText = stockKing.stock.toLocaleString();
+        }
+    }
+
+    // [8] 샘플 & 아두이노
+    function loadLogo(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) { customLogoData = e.target.result; };
+            reader.readAsDataURL(file);
+        }
+    }
+    function runSample(mode) {
+        isSampleMode = true;
+        // [수정] 샘플 모드 시 수정 버튼 숨기기
+        document.getElementById('btnEditPrev').style.display = 'none';
+        
+        currentMode = mode;
+        for(let k in stockInfo) {
+            const v = document.getElementById(`conf_${k}`).value;
+            if(v) stockInfo[k].price = parseInt(v);
+        }
+        players = [];
+        if(mode==='individual') for(let i=1;i<=5;i++) players.push(randP(`참가자 ${i}`, '-'));
+        else ['A팀','B팀'].forEach(t=>{ for(let i=1;i<=3;i++) players.push(randP(`참가자${i}`, t)); });
+        finishGame();
+    }
+    function randP(n,t) {
+        let p = {id:Math.random(), name:n, team:t, assets:initAssets(), total:0, rankIndiv:0, rankTeam:0, teamTotal:0, manualCash:0};
+        p.manualCash = (Math.floor(Math.random()*20)+1) * 10000;
+        for(let k in p.assets) p.assets[k] = Math.floor(Math.random()*5)+1;
+        return p;
+    }
+    function calcCashFromBills(a){ return a["100"]*100+a["500"]*500+a["1000"]*1000+a["5000"]*5000+a["10000"]*10000+a["50000"]*50000; }
+    function calcStock(a){ let s=0; for(let k in stockInfo) s+=a[k]*stockInfo[k].price; return s; }
+
+    let port, reader;
+    async function connectArduino() {
+        try{ 
+            port=await navigator.serial.requestPort(); await port.open({baudRate:115200}); 
+            document.getElementById('connStatus').innerText="✅"; 
+            alert("연결되었습니다.");
+            const dec=new TextDecoderStream(); port.readable.pipeTo(dec.writable); reader=dec.readable.getReader(); readLoop();
+        }catch(e){}
+    }
+    document.getElementById('connectBtn').addEventListener('click', connectArduino);
+    
+    async function readLoop(){
+        let buf=""; while(true){ const {value,done}=await reader.read(); if(done)break; buf+=value; let lines=buf.split('\n'); buf=lines.pop();
+        lines.forEach(l=>{ 
+            if(l.trim().startsWith('{')){ 
+                try{ 
+                    let d=JSON.parse(l.trim()); 
+                    let targetIdx = (document.getElementById('reportScreen').classList.contains('active-screen')) ? viewingPlayerIndex : activeCountingIndex;
+                    if(players[targetIdx]) { 
+                        players[targetIdx].assets[d.type] = d.count;
+                        if(document.getElementById('reportScreen').classList.contains('active-screen')) {
+                            if(!isNaN(d.type)) { players[targetIdx].manualCash = calcCashFromBills(players[targetIdx].assets); }
+                            manualUpdate(); 
+                        } else { 
+                            if(!isNaN(d.type)) { players[targetIdx].manualCash = calcCashFromBills(players[targetIdx].assets); }
+                            updateDash(); 
+                        }
+                    } 
+                }catch(e){} 
+            } 
+        }); }
+    }
+</script>
+</body>
+</html>
