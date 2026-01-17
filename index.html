@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>머니빌리지 통합 관리 시스템</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+
+    <div id="setupScreen" class="screen active-screen">
+        <div class="setup-card">
+            <h1 style="color:var(--mv-blue-deep);">머니빌리지 게임 설정</h1>
+            <button class="btn btn-fame" style="width:100%; padding:15px; margin-bottom:20px; font-size:16px; justify-content: center; font-weight:900;" onclick="showFameScreen()">🏆 명예의 전당 입장</button>
+
+            <div class="logo-uploader">
+                <div style="font-weight:bold; margin-bottom:5px;">로고 이미지 설정 (선택)</div>
+                <input type="file" id="logoInput" accept="image/*" onchange="loadLogo(event)">
+                <div style="font-size:12px; color:#888; margin-top:5px;">파일을 선택하면 성적표 우측 상단에 표시됩니다.</div>
+            </div>
+            <div class="stock-config-area">
+                <div class="stock-config-title">📈 주식 가격 설정 (4R)</div>
+                <div class="stock-inputs-grid" id="stockConfigInputs"></div>
+            </div>
+            <div class="mode-select">
+                <div class="mode-btn selected" onclick="selectMode('individual')" id="btnIndiv">👤 개인전</div>
+                <div class="mode-btn" onclick="selectMode('team')" id="btnTeam">👥 팀전</div>
+            </div>
+            <div id="individualConfig"><div class="input-row">참가 인원: <input type="number" id="playerCount" value="4" min="1" class="input-num"> 명</div></div>
+            <div id="teamConfig" style="display:none;">
+                <div class="input-row">팀 개수: <input type="number" id="teamCount" value="2" min="2" class="input-num"> 팀</div>
+                <div class="input-row">팀당 인원: <input type="number" id="memberPerTeam" value="3" min="1" class="input-num"> 명</div>
+            </div>
+            <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; justify-content: center;" onclick="generateInputs()">명단 입력하기 ▼</button>
+            <div id="nameInputArea" class="player-list-input"></div>
+            <button id="startGameBtn" class="btn btn-success" style="display:none; width:100%; margin-top:20px; font-size:18px; padding:15px; justify-content: center;" onclick="startGame()">🚀 게임 시작</button>
+            <div style="margin-top:30px; border-top:1px dashed #ddd; padding-top:10px;">
+                <button class="btn btn-purple btn-setup-big" onclick="runSample('individual')">🧪 개인전 샘플</button>
+                <button class="btn btn-purple btn-setup-big" onclick="runSample('team')">🧪 팀전 샘플</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="countingScreen" class="screen">
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-primary" onclick="location.reload()">🔄 처음으로</button>
+                <button id="connectBtn" class="btn btn-dark">🔌 계수기 연결 <span id="connStatus" style="color:#ffcc80"></span></button>
+            </div>
+            <button class="btn btn-success" onclick="finishGame()">🏆 결과 발표 (계수 종료)</button>
+        </div>
+        <div class="dashboard-layout">
+            <div class="sidebar">
+                <h3 style="margin-top:0; color:var(--mv-blue-deep);">참가자 목록</h3>
+                <div id="sidebarList"></div>
+            </div>
+            <div class="dashboard-main">
+                <div class="count-card">
+                    <div style="color:#888; font-size:14px;">현재 계수 중 (수동 입력 가능)</div>
+                    <div id="displayPlayerName" style="font-size:32px; font-weight:900; color:var(--mv-blue-deep); margin-bottom:5px;">-</div>
+                    <div id="displayTotalAsset" style="font-size:50px; font-weight:900; color:#333;">0 원</div>
+                    <div style="margin-top:10px;">
+                        <span style="color:var(--mv-blue-light)">●</span> 현금: 
+                        <input type="number" id="cntCashInput" class="editable-input" value="0" style="width:100px; font-size:18px; text-align:center;" onchange="updateManualOnCounting()"> 원
+                        &nbsp;&nbsp; 
+                        <span style="color:var(--mv-yellow)">●</span> 주식: <b id="displayStock">0</b> 원
+                    </div>
+                </div>
+                <div class="count-card">
+                    <h4>보유 주식 (4R 현재가)</h4>
+                    <div class="portfolio-grid-sm" id="stockGridSm"></div>
+                </div>
+                <div style="text-align:center; color:#d32f2f; background:#ffebee; padding:10px; border-radius:10px; font-weight:bold;">
+                    ⚠️ 계수기 연결 버튼은 비활성화되어 있습니다. 직접 숫자를 입력하세요!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="reportScreen" class="screen">
+        <div class="report-controls">
+            <div style="font-size:18px; font-weight:bold; white-space:nowrap; margin-right:10px;">🎓 자산 성적표</div>
+            <div style="display:flex; align-items:center;">
+                <button class="btn btn-dark" style="background:#607d8b; margin-right:10px;" id="btnEditPrev" onclick="switchScreen('countingScreen')">✏️ 수정(이전으로)</button>
+                <button class="btn btn-dark" onclick="prevPlayer()">◀ 이전</button>
+                <span id="pageIndicator" style="margin:0 8px; font-size:14px; white-space:nowrap;"></span>
+                <button class="btn btn-dark" onclick="nextPlayer()">다음 ▶</button>
+                <div style="width:10px;"></div>
+                <button class="btn btn-drive" id="btnSaveDrive" onclick="saveToDrive()">☁️ 드라이브 저장</button>
+                <button class="btn btn-danger" onclick="downloadPDF('report')">📄 PDF 저장</button>
+                <button class="btn btn-success" onclick="printReport()">🖨️ 출력</button>
+                <button class="btn btn-primary" onclick="location.reload()">🔄 처음으로</button>
+            </div>
+        </div>
+
+        <div class="report-paper" id="pdfAreaReport">
+            <div class="report-header">
+                <div class="header-left">
+                    <div class="header-title">
+                        <h1>자산 리포트</h1>
+                        <p>Money Village Asset Report</p>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <img id="rptLogoImg" src="" alt="로고" class="logo-img" style="display:none;">
+                    <div id="rptLogoText" style="font-size:20px; font-weight:900; color:var(--mv-blue-deep); margin-bottom:5px;">코드코드영재학원</div>
+                    
+                    <div class="header-info">
+                        <div class="info-row">
+                            <span id="rptTeamWrapper" style="display:none; margin-right:10px;">
+                                <span class="info-label">팀명:</span>
+                                <input type="text" id="rptTeamInput" class="editable-text" style="width:80px;" onchange="updateTeamName()">
+                            </span>
+                            <span class="info-label">이름:</span>
+                            <input type="text" id="rptNameInput" class="editable-text" style="width:100px;" onchange="updatePlayerName()">
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">날짜:</span>
+                            <input type="text" id="rptDateInput" class="editable-date">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ranking-section">
+                <div class="my-rank-card">
+                    <div class="my-rank-title">나의 최종 순위</div>
+                    <div><span class="my-rank-num" id="rptRankIndiv">-</span><span class="my-rank-suffix">위</span></div>
+                    <div style="font-size:13px; color:#999;">(전체 <span id="rptTotalPlayers">0</span>명 중)</div>
+                    <div id="rptTeamSection" class="my-team-rank-box" style="display:none;">
+                        <div class="team-detail-line"><span>소속</span> <strong id="rptTeamDisplay" style="color:#333;">-</strong></div>
+                        <div class="team-detail-line"><span>팀 순위</span> <strong class="team-hl"><span id="rptRankTeam">-</span>위</strong></div>
+                        <div class="team-detail-line"><span style="color:#888;">팀 총자산</span> <strong style="color:#00498c; font-size:13px;"><span id="rptTeamTotalAsset">0</span>원</strong></div>
+                    </div>
+                </div>
+                <div class="fame-card">
+                    <div class="fame-title">🏆 명예의 전당 (Top 3)</div>
+                    <div id="top3Container"></div>
+                </div>
+            </div>
+
+            <div class="asset-box">
+                <div class="asset-text">
+                    <div class="label" style="font-size:15px; font-weight:bold; color:#555;">총 자산 (현금 + 주식)</div>
+                    <div class="money" id="rptTotalAsset">0 원</div>
+                    <div class="asset-detail">
+                        <span style="color:var(--mv-blue-light)">●</span>&nbsp;현금: 
+                        <input type="number" id="rptCashInput" class="editable-input" style="width:90px;" value="0" onchange="manualUpdate()"> 원
+                        &nbsp;&nbsp; 
+                        <span style="color:var(--mv-yellow)">●</span>&nbsp;주식: <span id="rptStock">0</span> 원
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <svg width="90" height="90" viewBox="0 0 100 100" id="rptSvgChart">
+                        <circle cx="50" cy="50" r="50" fill="#ffc600" /> 
+                        <path id="rptSvgPath" d="" fill="#0072ce" />
+                        <circle cx="50" cy="50" r="35" fill="white" />
+                    </svg>
+                    <div class="chart-center">
+                        <div>현금비중</div>
+                        <div id="rptCashPct" style="font-size:14px;">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-header">나의 주식 포트폴리오</div>
+            <div class="portfolio-grid" id="rptStockGrid"></div>
+
+            <div class="section-header">경제 활동 가이드</div>
+            <div class="booth-grid">
+                <div class="booth-item"><div class="booth-icon">👷</div><div class="booth-text"><h4>노동</h4><p>성실한 미션 수행과 보상</p></div></div>
+                <div class="booth-item"><div class="booth-icon">🏦</div><div class="booth-text"><h4>은행</h4><p>저축을 통한 이자 수익</p></div></div>
+                <div class="booth-item"><div class="booth-icon">📈</div><div class="booth-text"><h4>주식</h4><p>시장 분석을 통한 투자</p></div></div>
+                <div class="booth-item"><div class="booth-icon">🎓</div><div class="booth-text"><h4>직업</h4><p>전문성을 높여 수익 증가</p></div></div>
+                <div class="booth-item"><div class="booth-icon">🍀</div><div class="booth-text"><h4>행운</h4><p>우연한 기회와 행운 포착</p></div></div>
+                <div class="booth-item"><div class="booth-icon">⚔️</div><div class="booth-text"><h4>퀘스트</h4><p>도전과 성취 보상</p></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="fameScreen" class="screen">
+        <div class="report-controls">
+            <div style="font-size:18px; font-weight:bold;">🏆 명예의 전당</div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-primary" onclick="switchScreen('setupScreen')">🏠 처음으로</button>
+                <button class="btn btn-purple" onclick="loadFameSamples()">🧪 샘플 보기</button>
+                <button class="btn btn-drive" onclick="fetchFameData()">🔄 데이터 새로고침</button>
+                <button class="btn btn-danger" onclick="downloadPDF('fame')">📄 PDF 저장</button>
+                <button class="btn btn-success" onclick="printFame()">🖨️ 출력</button>
+            </div>
+        </div>
+
+        <div class="report-paper fame-only" id="pdfAreaFame">
+            <div id="loadingOverlay">
+                <div style="font-size:40px; margin-bottom:10px;">⏳</div>
+                <div style="font-weight:bold; color:#555;">클라우드에서 데이터를 불러오는 중...</div>
+            </div>
+
+            <div class="report-header">
+                <div class="header-left">
+                    <div class="header-title">
+                        <h1><span>🏆</span> 머니빌리지 명예의 전당</h1>
+                        <p>Money Village Hall of Fame : 역대 최고 자산가 랭킹</p>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <img id="fameLogoImg" src="" alt="로고" class="logo-img" style="display:none;">
+                    <div id="fameLogoText" class="logo-text" style="font-size:22px; font-weight:900; color:var(--mv-blue-deep); margin-bottom:5px;">코드코드영재학원</div>
+                    <div style="font-size:14px; color:#888; font-weight:bold;">Last Update: <span id="todayDate">-</span></div>
+                </div>
+            </div>
+
+            <div class="fame-only section-title" style="margin-top:5px;">👤 개인전 역대 Top 10 (Individual)</div>
+            <table class="ranking-table">
+                <colgroup><col style="width: 8%"><col style="width: 22%"><col style="width: 20%"><col style="width: 17%"><col style="width: 17%"><col style="width: 16%"></colgroup>
+                <thead><tr><th>순위</th><th>이름</th><th>총 자산</th><th>현금</th><th>주식</th><th>달성 날짜</th></tr></thead>
+                <tbody id="indivTableBody"></tbody>
+            </table>
+
+            <div class="special-awards-container">
+                <div class="award-card">
+                    <div class="award-icon">💵</div>
+                    <div class="award-info">
+                        <div class="award-title hl-cash">Personal Cash King</div>
+                        <div class="award-name" id="awardCashName">-</div>
+                        <div class="award-value">현금 보유액: <span id="awardCashVal">0</span> 원</div>
+                    </div>
+                </div>
+                <div class="award-card">
+                    <div class="award-icon">📈</div>
+                    <div class="award-info">
+                        <div class="award-title hl-stock">Personal Stock King</div>
+                        <div class="award-name" id="awardStockName">-</div>
+                        <div class="award-value">주식 평가액: <span id="awardStockVal">0</span> 원</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="fame-only section-title">👥 팀전 역대 Top 5 (Team)</div>
+            <table class="ranking-table">
+                <colgroup><col style="width: 8%"><col style="width: 22%"><col style="width: 22%"><col style="width: 33%"><col style="width: 15%"></colgroup>
+                <thead><tr><th>순위</th><th>팀명</th><th>팀 총 자산</th><th>팀원 (Top 4 기여)</th><th>달성 날짜</th></tr></thead>
+                <tbody id="teamTableBody"></tbody>
+            </table>
+
+            <div class="fame-footer">
+                <div style="font-size:15px; color:var(--mv-blue-deep); font-weight:900; margin-bottom:5px;">“투자는 오늘의 씨앗을 심고, 열매가 맺힐 때까지 기다릴 줄 아는 거예요”</div>
+                ✨ 다음 전설의 주인공은 바로 당신입니다! 머니빌리지에 도전하세요! ✨
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
